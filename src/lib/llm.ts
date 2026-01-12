@@ -184,12 +184,12 @@ function addOtherCategory(tokens: Token[], minProbability: number = 0.01): Token
     return tokens;
 }
 
-export async function getNextToken(prefix: string): Promise<NextTokenResponse> {
+export async function getNextToken(prefix: string, model: string = 'gemini-2.0-flash'): Promise<NextTokenResponse> {
     if (!apiKey) {
         throw new Error("GEMINI_API_KEY is not set");
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     // System instruction to enforce pure text continuation (not chat/completion)
     const systemInstruction = `You are a text continuation engine. Your ONLY job is to continue the text that follows.
