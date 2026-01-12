@@ -4,6 +4,9 @@ import React, { useState, useRef, FormEvent, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plinko } from './games/Plinko';
 import { SpinWheel } from './games/SpinWheel';
+import { SlotMachine } from './games/SlotMachine';
+import { DiceRoll } from './games/DiceRoll';
+import { LotteryBalls } from './games/LotteryBalls';
 import { DebugPanel, DebugLogEntry } from './DebugPanel';
 import { RefreshCw, Zap, Bug, Settings, X, Undo2 } from 'lucide-react';
 import { getTokenColor, getTokenColorLight, getTokenColorBorder, isValidToken } from '@/lib/colors';
@@ -27,7 +30,7 @@ export const WordBuilder: React.FC = () => {
     const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
     const [model, setModel] = useState("gemini-2.0-flash");
     const [maxTokens, setMaxTokens] = useState(12);
-    const [selectedGame, setSelectedGame] = useState<'plinko' | 'wheel'>('plinko');
+    const [selectedGame, setSelectedGame] = useState<'plinko' | 'wheel' | 'slots' | 'dice' | 'lottery'>('plinko');
     const [otherExpanded, setOtherExpanded] = useState(true);
     const [floatingWord, setFloatingWord] = useState<string | null>(null);
     const settingsRef = useRef<HTMLDivElement>(null);
@@ -116,13 +119,21 @@ export const WordBuilder: React.FC = () => {
     const fetchNextToken = async (prefix: string) => {
         setIsLoading(true);
         setError(null);
-        addDebugLog('request', { prefix, model, maxTokens });
+
+        // After sentence-ending punctuation, add a space so LLM suggests new words
+        // instead of continuation tokens or more punctuation
+        const sentenceEndingPunctuation = /[.!?;:"')\]}>]$/;
+        const normalizedPrefix = sentenceEndingPunctuation.test(prefix.trim())
+            ? prefix.trimEnd() + ' '
+            : prefix;
+
+        addDebugLog('request', { prefix: normalizedPrefix, model, maxTokens });
 
         try {
             const response = await fetch('/api/next-token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prefix, model }),
+                body: JSON.stringify({ prefix: normalizedPrefix, model }),
             });
 
             if (!response.ok) throw new Error("Failed to fetch next token");
@@ -405,7 +416,7 @@ export const WordBuilder: React.FC = () => {
                                 <span className="section-icon">🎲</span>
                                 <span className="section-title">Chance Game</span>
                                 <span className="section-subtitle">Let fate decide</span>
-                                <div className="game-selector">
+                                <div className="game-selector" style={{ flexWrap: 'wrap', gap: '0.25rem' }}>
                                     <button
                                         className={`game-tab ${selectedGame === 'plinko' ? 'active' : ''}`}
                                         onClick={() => setSelectedGame('plinko')}
@@ -417,6 +428,24 @@ export const WordBuilder: React.FC = () => {
                                         onClick={() => setSelectedGame('wheel')}
                                     >
                                         🎡 Wheel
+                                    </button>
+                                    <button
+                                        className={`game-tab ${selectedGame === 'slots' ? 'active' : ''}`}
+                                        onClick={() => setSelectedGame('slots')}
+                                    >
+                                        🎰 Slots
+                                    </button>
+                                    <button
+                                        className={`game-tab ${selectedGame === 'dice' ? 'active' : ''}`}
+                                        onClick={() => setSelectedGame('dice')}
+                                    >
+                                        🎲 Dice
+                                    </button>
+                                    <button
+                                        className={`game-tab ${selectedGame === 'lottery' ? 'active' : ''}`}
+                                        onClick={() => setSelectedGame('lottery')}
+                                    >
+                                        🎱 Lottery
                                     </button>
                                 </div>
                             </div>
@@ -434,8 +463,23 @@ export const WordBuilder: React.FC = () => {
                                             alternatives={alternatives}
                                             onResult={(token) => handleWordSelected(token, true)}
                                         />
-                                    ) : (
+                                    ) : selectedGame === 'wheel' ? (
                                         <SpinWheel
+                                            alternatives={alternatives}
+                                            onResult={(token) => handleWordSelected(token, true)}
+                                        />
+                                    ) : selectedGame === 'slots' ? (
+                                        <SlotMachine
+                                            alternatives={alternatives}
+                                            onResult={(token) => handleWordSelected(token, true)}
+                                        />
+                                    ) : selectedGame === 'dice' ? (
+                                        <DiceRoll
+                                            alternatives={alternatives}
+                                            onResult={(token) => handleWordSelected(token, true)}
+                                        />
+                                    ) : (
+                                        <LotteryBalls
                                             alternatives={alternatives}
                                             onResult={(token) => handleWordSelected(token, true)}
                                         />

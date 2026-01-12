@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getTokenColor, isValidToken } from '@/lib/colors';
 
 interface Alternative {
     token: string;
@@ -26,8 +27,32 @@ export const SlotMachine: React.FC<SlotMachineProps> = ({ alternatives, onResult
     const spinIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Filter out OTHER for display
-    const displayAlternatives = alternatives.filter(a => !a.is_other);
+    // Merge tokens with same display text and filter out invalid tokens
+    const displayAlternatives = useMemo(() => {
+        const filtered = [...alternatives].filter(a => !a.is_other && isValidToken(a.token));
+
+        const mergedMap = new Map<string, Alternative>();
+        for (const alt of filtered) {
+            const displayKey = alt.token.trim().toLowerCase();
+            const existing = mergedMap.get(displayKey);
+
+            if (existing) {
+                const preferredToken = alt.token.startsWith(' ') ? alt.token : existing.token;
+                mergedMap.set(displayKey, {
+                    ...existing,
+                    token: preferredToken,
+                    probability: existing.probability + alt.probability,
+                    log_probability: Math.log(Math.exp(existing.log_probability) + Math.exp(alt.log_probability)),
+                });
+            } else {
+                mergedMap.set(displayKey, { ...alt });
+            }
+        }
+
+        return Array.from(mergedMap.values())
+            .sort((a, b) => b.probability - a.probability)
+            .slice(0, 12);
+    }, [alternatives]);
 
     // Create extended reel items for visual variety
     const reelItems = React.useMemo(() => {
